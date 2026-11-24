@@ -1037,6 +1037,39 @@ def test_show_envvar_empty(runner, envvar, auto_envvar_prefix, expected):
     assert expected in result.output
 
 
+def test_show_envvar_auto_prefix_error_hint(runner):
+    @click.command(context_settings={"auto_envvar_prefix": "MYAPP"})
+    @click.option("--port", type=int, required=True, show_envvar=True)
+    def cli(port):
+        pass
+
+    result = runner.invoke(cli, [])
+    assert result.exit_code != 0
+    assert "Error: Missing option '--port' (env var: 'MYAPP_PORT')." in result.output
+
+    result = runner.invoke(cli, ["--port", "notanint"])
+    assert result.exit_code != 0
+    assert (
+        "Error: Invalid value for '--port' (env var: 'MYAPP_PORT'):"
+        " 'notanint' is not a valid integer." in result.output
+    )
+
+
+def test_show_envvar_auto_prefix_subcommand_error_hint(runner):
+    @click.group()
+    def cli():
+        pass
+
+    @cli.command()
+    @click.option("--port", type=int, required=True, show_envvar=True)
+    def run(port):
+        pass
+
+    result = runner.invoke(cli, ["run"], auto_envvar_prefix="TEST")
+    assert result.exit_code != 0
+    assert "Error: Missing option '--port' (env var: 'TEST_RUN_PORT')." in result.output
+
+
 def test_custom_validation(runner):
     def validate_pos_int(ctx, param, value):
         if value < 0:
